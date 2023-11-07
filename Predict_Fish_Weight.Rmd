@@ -98,3 +98,5 @@ summary(best.model)
 ```{r}
 anova(fullup,best.model)
 ```
+
+As shown by the anova test, Model 1 is the best model to use based on the residual difference which is lower than that of model 2.
