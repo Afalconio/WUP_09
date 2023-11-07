@@ -1,71 +1,100 @@
 ---
 title: "Weight of Fish"
-author: "Your Name"
+author: "Anthony Falconio"
 date: "`r Sys.Date()`"  
 output: 
   html_document:
     number_sections: true
     toc: true
     toc_depth: 5
-
- 
-    
 ---
 
 
-```{r include=FALSE,echo=FALSE}
-require(tigerstats)
-require(tidyverse)
-require(car)
-require(leaps)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 ```
-
-# Predicting Fish Weight
 ```{r}
-fish <- read.csv(file = "Fish.csv")
+require(tidyverse)
+if(!require("Bolstad")) {install.packages("Bolstad");require("Bolstad")}
+
+data(bears)
+Bears <- select(bears,contains("e"),-Name)
+#Clean missing values out of dataset (needed to run Anova at end of demo)
+Bears<- na.omit(Bears)
+```
+## make a multiple regression model predicting Length, start with full model using p-value approach   
+
+```{r}
+fullup <- lm(Length~ .,data=Bears)
+summary.lm(fullup)
+```
+###Take out Head.W
+
+```{r}
+MODL7 <- lm(Length~ .-Head.W,data=Bears)
+summary.lm(MODL7)
+```
+###Now take out Weight
+
+```{r}
+MODL6 <- lm(Length~ .- Head.W-Weight,data=Bears)
+summary.lm(MODL6)
+```
+###Remove Age next
+```{r}
+MODL5 <- lm(Length~ .- Head.W-Weight-Age,data=Bears)
+summary.lm(MODL5)
+```
+###Now remove Neck.G  
+
+```{r}
+MODL4 <- lm(Length~ .- Head.W-Weight-Age-Neck.G,data=Bears)
+summary.lm(MODL4)
 ```
 
-```{r eval=TRUE}
- 
-fish <- fish %>%
-mutate(across(where(is.character), as.factor))
-levels(fish$Species)
-Bream <- filter(fish, Species == "Bream")
-Bream <- select(Bream, -Species) 
-Parkki <- filter(fish, Species == "Parkki")
-Parkki <- select(Parkki, -Species) 
-Perch <- filter(fish, Species == "Perch")
-Perch <- select(Perch, -Species) 
-Pike <- filter(fish, Species == "Pike")
-Pike <- select(Pike, -Species) 
-Roach <- filter(fish, Species == "Roach")
-Roach <- select(Roach, -Species) 
-Smelt <- filter(fish, Species == "Smelt")
-Smelt <- select(Smelt, -Species) 
-Whitefish <- filter(fish, Species == "Whitefish")
-Whitefish <- select(Whitefish, -Species) 
+```{r}
+MODL3 <- lm(Length~ .- Head.W-Weight-Age-Neck.G-Sex,data=Bears)
+summary.lm(MODL3)
 ```
 
-# For each of the three species of fish listed below, determine the best regression model and also the best 2 element regression model. Use the BestSubset Regression helper file.
+###AdjR^2 Started going down from 4 to 3 - so stop at 4
 
 
-## Perch
-
-### Best Models
-
-### Best Two regressor model
 
 
-## Pike
+#now automate
 
-### Best Models
 
-### Best Two regressor model
+```{r}
+library(leaps)
+regsubsets.out <-
+    regsubsets(Length ~ .,
+               data = Bears,
+               nbest = 1,       # 1 best model for each number of predictors
+               nvmax = NULL,    # NULL for no limit on number of variables
+               force.in = NULL, force.out = NULL,
+               method = "exhaustive")
 
-## Roach
+summary.out <- summary(regsubsets.out)
+as.data.frame(summary.out$outmat)
+library(car)
+subsets(regsubsets.out,statistic="adjr2",legend="bottomright",main="Adjusted R^2")
+```
+  
+##Which is best??  
 
-### Best Models
+```{r}
+which.max(summary.out$adjr2)
+```
+```{r}
+summary.out$which[3,]
+```
 
-### Best Two regressor model
+```{r}
+best.model <- lm(Length~Sex+Head.L+Chest.G,data=Bears)
+summary(best.model)
+```
 
-## Final Summary Statements
+```{r}
+anova(fullup,best.model)
+```
